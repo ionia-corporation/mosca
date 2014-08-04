@@ -58,10 +58,6 @@ class Mosca
         client:     MQTT::Client }
     end
 
-    def subscribe_channel
-      "#{ options[:topic_base] }#{ options[:topic_in] }"
-    end
-
     def channel_out
       "#{ options[:topic_base] }#{ options[:topic_out] }"
     end
