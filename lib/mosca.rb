@@ -6,40 +6,35 @@ class Mosca
   @@default_timeout = 5
   @@debug = false
 
-  attr_accessor :user, :pass, :topic_in, :topic_out, :broker, :topic_base, :client
+  attr_reader :options
 
-  def initialize params = {}
-    @user = params[:user]
-    @pass = params[:pass]
-    @topic_in = params[:topic_in]
-    @topic_out = params[:topic_out]
-    @topic_base = params[:topic_base] || ""
-    @broker = params[:broker] ||  @@default_broker
-    @client = params[:client] || MQTT::Client
+  def initialize args = {}
+    @options = default.merge(args)
   end
 
-  def publish json, params = {}
+  def broker
+    options[:broker]
+  end
+
+  def publish json, args = {}
+    self.options = args
     connection do |c|
-      topic = params[:topic_out] || @topic_out
-      debug "[start publish] " + timestamp
-      c.subscribe(topic_base + topic_in) if params[:response]
-      c.publish(topic_base + topic,json)
-      debug "[end publish] " + timestamp
-      if params[:response]
-        return get(params.merge({connection: c}))
-      end
+      debug "[start publish] #{ timestamp }"
+      c.subscribe(subscribe_channel) if args[:response]
+      c.publish(channel_out, json)
+      debug "[end publish] #{ timestamp }"
+      get(options.merge({connection: c})) if args[:response]
     end
   end
 
-  def get params = {}
+  def get args = {}
+    self.options = args
     response = {}
-    connection(params) do |c|
-      topic = params[:topic_in] || @topic_in
-      timeout = params[:timeout] || @@default_timeout
+    connection(args) do |c|
       begin
-        Timeout.timeout(timeout) do
+        Timeout.timeout(options[:timeout]) do
           debug "[start get] " + timestamp
-          c.get(topic_base + topic) do |topic, message|
+          c.get(channel_in) do |topic, message|
             response = parse_response message
             break
           end
@@ -51,55 +46,79 @@ class Mosca
     response
   end
 
-  def self.default_broker= param
-    @@default_broker = param
+  def self.default_broker= broker
+    @@default_broker = broker
   end
 
-  def self.default_timeout= param
-    @@default_timeout = param
+  def self.default_timeout= timeout
+    @@default_timeout = timeout
   end
 
-  def self.debug= param
-    @@debug = param
+  def self.debug= debug
+    @@debug = debug
   end
 
   private
 
-  def opts
-    {remote_host: @broker, username: @user, password: @pass}
-  end
+    def options=(args)
+      @options = @options.merge(args)
+    end
 
-  def connection params = {}
-    if params[:connection]
-      yield params[:connection]
-    else
-      @client.connect(opts) do |c|
-        yield c
+    def default
+      { topic_base: "",
+        broker:     @@default_broker,
+        client:     MQTT::Client }
+    end
+
+    def subscribe_channel
+      "#{ options[:topic_base] }#{ options[:topic_in] }"
+    end
+
+    def channel_out
+      "#{ options[:topic_base] }#{ options[:topic_out] }"
+    end
+
+    def channel_in
+      "#{ options[:topic_base] }#{ options[:topic_in] }"
+    end
+
+    def connection_options
+      { remote_host: options[:broker],
+        username:    options[:user],
+        password:    options[:pass] }
+    end
+
+    def connection params = {}
+      if params[:connection]
+        yield params[:connection]
+      else
+        options[:client].connect(connection_options) do |c|
+          yield c
+        end
       end
     end
-  end
 
-  def parse_response response
-    if valid_json? response
-      response = JSON.parse response
+    def parse_response response
+      if valid_json? response
+        response = JSON.parse response
+      end
+      response
     end
-    response
-  end
 
-  def valid_json? json_
-    begin
-      JSON.parse(json_)
-      return true
-    rescue
-      return false
+    def valid_json? json
+      begin
+        JSON.parse(json)
+        true
+      rescue
+        false
+      end
     end
-  end
 
-  def debug message
-    puts message if @@debug
-  end
+    def debug message
+      puts message if @@debug
+    end
 
-  def timestamp
-    Time.new.to_f.to_s
-  end
+    def timestamp
+      Time.new.to_f.to_s
+    end
 end
