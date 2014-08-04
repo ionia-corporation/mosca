@@ -27,15 +27,19 @@ class Mosca
 
   def get args = {}
     self.options = args
+    response = {}
     connection do |c|
-      Timeout.timeout(options[:timeout]) do
-        c.get(channel_in) do |topic, message|
-          parse_response message
-          break
+      begin
+        Timeout.timeout(options[:timeout]) do
+          c.get(channel_in) do |topic, message|
+            response = parse_response message
+            break
+          end
         end
+      rescue Timeout::Error
       end
-    rescue Timeout::Error
     end
+    response
   end
 
   def self.default_broker= broker
