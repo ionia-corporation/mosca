@@ -21,7 +21,7 @@ class Mosca
     connection do |c|
       c.subscribe(subscribe_channel) if args[:response]
       c.publish(channel_out, json)
-      get(options.merge({connection: c})) if args[:response]
+      get(connection: c) if args[:response]
     end
   end
 
@@ -72,9 +72,9 @@ class Mosca
         password:    options[:pass] }
     end
 
-    def connection params = {}
-      if params[:connection]
-        yield params[:connection]
+    def connection
+      if options[:connection]
+        yield options[:connection]
       else
         options[:client].connect(connection_options) do |c|
           yield c
