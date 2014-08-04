@@ -83,23 +83,9 @@ class Mosca
     end
 
     def parse_response response
-      if valid_json? response
-        response = JSON.parse response
-      end
-      response
-    end
-
-    def valid_json? json
-      begin
-        JSON.parse(json)
-        true
-      rescue
-        false
-      end
-    end
-
-    def debug message
-      puts message if @@debug
+      JSON.parse response
+      rescue JSON::ParserError
+        response
     end
 
     def timestamp
