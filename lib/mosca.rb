@@ -19,31 +19,23 @@ class Mosca
   def publish json, args = {}
     self.options = args
     connection do |c|
-      debug "[start publish] #{ timestamp }"
-      c.subscribe(subscribe_channel) if args[:response]
+      c.subscribe(channel_in) if args[:response]
       c.publish(channel_out, json)
-      debug "[end publish] #{ timestamp }"
       get(options.merge({connection: c})) if args[:response]
     end
   end
 
   def get args = {}
     self.options = args
-    response = {}
-    connection(args) do |c|
-      begin
-        Timeout.timeout(options[:timeout]) do
-          debug "[start get] " + timestamp
-          c.get(channel_in) do |topic, message|
-            response = parse_response message
-            break
-          end
-          debug "[end get] " + timestamp
+    connection do |c|
+      Timeout.timeout(options[:timeout]) do
+        c.get(channel_in) do |topic, message|
+          parse_response message
+          break
         end
-      rescue
       end
+    rescue Timeout::Error
     end
-    response
   end
 
   def self.default_broker= broker
@@ -52,10 +44,6 @@ class Mosca
 
   def self.default_timeout= timeout
     @@default_timeout = timeout
-  end
-
-  def self.debug= debug
-    @@debug = debug
   end
 
   private
