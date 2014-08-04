@@ -19,7 +19,7 @@ class Mosca
   def publish json, args = {}
     self.options = args
     connection do |c|
-      c.subscribe(channel_in) if args[:response]
+      c.subscribe(subscribe_channel) if args[:response]
       c.publish(channel_out, json)
       get(options.merge({connection: c})) if args[:response]
     end
