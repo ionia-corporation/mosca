@@ -4,7 +4,6 @@ require 'json'
 class Mosca
   @@default_broker = "test.mosquitto.org"
   @@default_timeout = 5
-  @@debug = false
 
   attr_accessor :options
 
