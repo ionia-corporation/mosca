@@ -6,7 +6,9 @@ class Mosca
   @@default_timeout = 5
   @@debug = false
 
-  attr_reader :options
+  attr_accessor :options
+
+  attr_reader :temporal_options
 
   def initialize args = {}
     @options = default.merge(args)
@@ -17,7 +19,7 @@ class Mosca
   end
 
   def publish json, args = {}
-    self.options = args
+    self.temporal_options = args
     connection do |c|
       c.subscribe(subscribe_channel) if args[:response]
       c.publish(channel_out, json)
@@ -26,11 +28,11 @@ class Mosca
   end
 
   def get args = {}
-    self.options = args
+    self.temporal_options = args
     response = {}
     connection do |c|
       begin
-        Timeout.timeout(options[:timeout]) do
+        Timeout.timeout(timeout) do
           c.get(channel_in) do |topic, message|
             response = parse_response message
             break
@@ -52,8 +54,8 @@ class Mosca
 
   private
 
-    def options=(args)
-      @options = @options.merge(args)
+    def temporal_options= args
+      @temporal_options = @options.merge(args)
     end
 
     def default
@@ -62,25 +64,29 @@ class Mosca
         client:     MQTT::Client }
     end
 
+    def timeout
+      temporal_options[:timeout]
+    end
+
     def channel_out
-      "#{ options[:topic_base] }#{ options[:topic_out] }"
+      "#{ temporal_options[:topic_base] }#{ temporal_options[:topic_out] }"
     end
 
     def channel_in
-      "#{ options[:topic_base] }#{ options[:topic_in] }"
+      "#{ temporal_options[:topic_base] }#{ temporal_options[:topic_in] }"
     end
 
     def connection_options
-      { remote_host: options[:broker],
-        username:    options[:user],
-        password:    options[:pass] }
+      { remote_host: temporal_options[:broker],
+        username:    temporal_options[:user],
+        password:    temporal_options[:pass] }
     end
 
     def connection
-      if options[:connection]
-        yield options[:connection]
+      if temporal_options[:connection]
+        yield temporal_options[:connection]
       else
-        options[:client].connect(connection_options) do |c|
+        temporal_options[:client].connect(connection_options) do |c|
           yield c
         end
       end
