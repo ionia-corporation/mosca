@@ -15,37 +15,56 @@ describe Mosca do
     @mosca.broker.should eq("test.mosquitto.org")
   end
 
-  it "uses topic_out to publish if it was specified, and publishes the desired message" do
-    @client_double.should_receive(:publish).with(OUT,@test_message)
-    @mosca.publish @test_message
-  end
-  it "can take a topic_out as argument when publishing" do
-    new_out_topic = "other_out_topic"
-    @client_double.should_receive(:publish).with(new_out_topic,@test_message)
-    @mosca.publish @test_message, topic_out: new_out_topic
+  describe "publishing" do
+
+    it "uses topic_out to publish if it was specified, and publishes the desired message" do
+      @client_double.should_receive(:publish).with(OUT,@test_message)
+      @mosca.publish @test_message
+    end
+
+    it "can take a topic_out as argument when publishing" do
+      new_out_topic = "other_out_topic"
+      @client_double.should_receive(:publish).with(new_out_topic,@test_message)
+      @mosca.publish @test_message, topic_out: new_out_topic
+    end
+
+    it "should wait for a response on topic_in if it's specified'" do
+      expect(@client_double).to receive(:connect).once
+#      expect(@mosca.publish(@test_message, response: true)).to eq("response")
+      @mosca.publish(@test_message, response: true)
+    end
+
   end
 
-  it "uses topic_in to get messages if it was specified" do
-    @client_double.should_receive(:get).with(IN)
-    @mosca.get
+  describe "subscribing" do
+
+    it "uses topic_in to get messages if it was specified" do
+      @client_double.should_receive(:get).with(IN)
+      @mosca.get
+    end
+
+    it "can take a topic_in as argument when getting" do
+      new_in_topic = "other_in_topic"
+      @client_double.should_receive(:get).with(new_in_topic)
+      @mosca.get topic_in: new_in_topic
+    end
+
+    it "will receive the message with get" do
+      @mosca.get.should eq("response")
+    end
+
   end
 
-  it "can take a topic_in as argument when getting" do
-    new_in_topic = "other_in_topic"
-    @client_double.should_receive(:get).with(new_in_topic)
-    @mosca.get topic_in: new_in_topic
-  end
+  describe "parsing the incoming messages" do
 
-  it "will receive the message with get" do
-    @mosca.get.should eq("response")
-  end
+    it "gets a hash if the message was a JSON object" do
+      @mosca.get(topic_in: "json_in_topic").should be_a(Hash)
+    end
 
-  it "gets a hash if the message was a JSON object" do
-    @mosca.get(topic_in: "json_in_topic").should be_a(Hash)
-  end
+    it "gets an array if the message was a JSON array" do
+      @mosca.get(topic_in: "json_array_in_topic").should be_a(Array)
+    end
 
-  it "gets an array if the message was a JSON array" do
-    @mosca.get(topic_in: "json_array_in_topic").should be_a(Array)
   end
 
 end
